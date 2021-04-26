@@ -15,45 +15,122 @@ from django.views.decorators.csrf import csrf_exempt
 from bson import ObjectId
 from bson.json_util import dumps
 from bson.objectid import ObjectId
-
-#finder_instance = None
-
-#def init(self):
- #       self.finder_instance = Finder()
         
 def createConnection():
    return pymongo.MongoClient("mongodb+srv://dbUser:system@cluster0.5hlez.mongodb.net/Finder?retryWrites=true&w=majority")
 
-# Create your views here.
 @csrf_exempt
-def BuscarCurriculo(request, pk):
+def buscarvaga(request, pk):
+   if request.method == "GET":
+      client = createConnection()
+      db = client["Finder"]
+      col = db["vagas"]
+  
+      vaga = col.find_one({"VagaIdExterno" : pk})
+      
+      if vaga:
+         return JsonResponse(dumps(vaga))
+      else:
+         return JsonResponse({"message" : "Vaga não encontrada."}, status=200)
+   else:
+      return JsonResponse({"message": "Erro na requisição. Método esperado: GET."}, status=500)
+  
+@csrf_exempt
+def insert_vaga(request):
+   if request.method == "POST":
+      client = createConnection()
+      db = client["Finder"]
+      col = db["vagas"]
+      
+      result = mycol.insert_one(json.loads(request.body))
+      # result
+      return JsonResponse({"message" : "Vaga cadastrada com sucesso."}, status=200)
+   else:
+      return JsonResponse({"message": "Erro na requisição. Método esperado: POST."}, status=500)
 
-   myclient = createConnection(self)
-   mydb = myclient["Finder"]
-   mycol = mydb["curriculo"]
+@csrf_exempt
+def updatevaga(request, id):
+   if request.method == "PUT":
+      client = createConnection()
+      db = client["Finder"]
+      col = db["vagas"]
 
-   myquery = { "_id": pk }
+      result = col.update_one({"VagaIdExterno" : id}, json.loads(request.body))
+      # result
+      return JsonResponse({"message":"Vaga atualizada com sucesso."}, status=200)
+   else:
+      return JsonResponse({"message":"Erro na requisição. Método esperado: PUT."}, status=500)  
 
-   mydoc = mycol.find(myquery)
+@csrf_exempt
+def delete_vaga(request, pk):
+   if request.method == "DELETE":
+      client = createConnection()
+      db = client["Finder"]
+      col = db["vagas"]
 
-   for x in mydoc:
-      print(x)
-   return HttpResponse("Curriculo encontrado com sucesso!")
+      result = col.delete_many({"VagaIdExterno": pk})
+      # result
+      return JsonResponse({"message":"Vaga excluída com sucesso."}, status=200)
+   else:
+      return JsonResponse({"message":"Erro na requisição. Método esperado: DELETE."}, status=500) 
 
-def searchByCargo(self):
-   client = createConnection(self)
-   mydb = client["Finder"]
-   mycol = mydb["curriculo"]
+@csrf_exempt
+def buscarCurriculo(request, pk):
+   if request.method == 'GET':
+      client = createConnection(self)
+      db = client["Finder"]
+      curriculos = db["Inscrito"]
 
-   myquery = { "Exp.cargo" : "tecnico" } 
+      curriculo = curriculos.find_one.find({ "InscritoIdExterno": pk })
 
-   mydoc = mycol.find(myquery)
+      if curriculo:
+         return JsonResponse(dumps(curriculo))
+      else:
+         return JsonResponse({"message" : "Currículo não encontrado."}, status=200)
+   else:
+      return JsonResponse({"message": "Erro na requisição. Método esperado: GET."}, status=500)
 
-   return HttpResponse(mydoc)
+@csrf_exempt
+def cadastrarCurriculo(request):
+   if request.method == "POST":
+      client = createConnection(self)         
+      db = client["Finder"]
+      col = db["Inscrito"]
+
+      result = col.insert_one(json.loads(request.body))
+      # result
+      return JsonResponse({"message":"Currículo inserido com sucesso."}, status=200)
+   else:
+      return JsonResponse({"message":"Erro na requisição. Método esperado: POST."}, status=500) 
+
+@csrf_exempt
+def atualizarCurriculo(request, pk):
+   if request.method == "PUT":
+      client = pymongo.MongoClient("mongodb+srv://dbUser:system@cluster0.5hlez.mongodb.net/Finder?retryWrites=true&w=majority")
+      db = client["Finder"]
+      col = db["Inscrito"]
+
+      result = col.update_one({"InscritoIdExterno" : pk}, json.loads(request.body))
+      # result
+      return JsonResponse({"message":"Currículo atualizado com sucesso."}, status=200)
+   else:
+      return JsonResponse({"message":"Erro na requisição. Método esperado: PUT."}, status=500)   
+
+@csrf_exempt
+def deletarCurriculo(request, pk):
+   if request.method == "DELETE":
+      client = pymongo.MongoClient("mongodb+srv://dbUser:system@cluster0.5hlez.mongodb.net/Finder?retryWrites=true&w=majority")
+      db = client["Finder"]
+      col = db["Inscrito"]
+
+      result = col.delete_many({"InscritoIdExterno" : pk})
+   # result
+      return JsonResponse({"message" : "Currículo excluído com sucesso."}, status=200)
+   else:
+      return JsonResponse({"message" : "Erro na requisição. Método esperado: DELETE."}, status=500)   
 
 @csrf_exempt
 def buscarPorVaga(request,VagaID):
-
    if request.method == 'GET':
       # Inicia conexão com o banco
       client = createConnection()
@@ -62,9 +139,7 @@ def buscarPorVaga(request,VagaID):
       curriculos = mydb["Inscrito"]
       vagas = mydb["vagas"]
 
-
-      print(VagaID)
-      # Recupera a vaga recebida por parâmatro
+      # Recupera a vaga recebida por parâmetro
       vaga = vagas.find_one({"_id" : ObjectId(VagaID)})
 
       if vaga:
@@ -97,103 +172,4 @@ def buscarPorVaga(request,VagaID):
       else:
          return JsonResponse({"message" : "Vaga não encontrada"}, status=200)
    else:
-      return JsonResponse({"message": "Erro na requisição. Método esperado GET."}, status=500)
-
-@csrf_exempt
-def buscarvaga(request):
-   vaga = request.POST.get('id_vaga')
-
-   if request.method == "POST":
-         myclient = pymongo.MongoClient("mongodb+srv://dbUser:system@cluster0.5hlez.mongodb.net/Finder?retryWrites=true&w=majority")
-         mydb = myclient["Finder"]
-         mycol = mydb["vaga"]
-
-         myquery = json.loads(request.body)
-
-         mydoc = mycol.find(myquery)
-         for x in mydoc:
-            print(x)
-   return HttpResponse("Achou!")
-  
-@csrf_exempt
-def insert_vaga(request):
-   if request.method == "POST":
-      myclient = pymongo.MongoClient("mongodb+srv://dbUser:system@cluster0.5hlez.mongodb.net/Finder?retryWrites=true&w=majority")
-      mydb = myclient["Finder"]
-      mycol = mydb["vaga"]
-      insert = json.loads(request.body)
-      aux = mycol.insert_one(insert)
-      return HttpResponse("Vaga cadastrada!")
-
-@csrf_exempt
-def delete_vaga(request, pk):
-   if request.method == "DELETE":
-      myclient = pymongo.MongoClient("mongodb+srv://dbUser:system@cluster0.5hlez.mongodb.net/Finder?retryWrites=true&w=majority")
-      mydb = myclient["Finder"]
-      mycol = mydb["vaga"]
-
-      myquery = { "_id": pk}
-      mycol.delete_one(myquery)
-
-      return HttpResponse("Vaga excluida!")
-
-
-@csrf_exempt
-def updatevaga(request, id):
-   if request.method == "POST":
-         myclient = pymongo.MongoClient("mongodb+srv://dbUser:system@cluster0.5hlez.mongodb.net/Finder?retryWrites=true&w=majority")
-         mydb = myclient["Finder"]
-         mycol = mydb["vaga"]
-         myquery = { "_id": id }
-         newvalues = json.loads(request.body)
-
-         mycol.update_one(myquery, newvalues)
-         for x in mycol.find():
-            print(x)
-
-   return HttpResponse("Vaga atualizada com sucesso!")
-
-@csrf_exempt
-def CadastrarCurriculo(request):
-
-   if request.method == "POST":
-         myclient = createConnection(self)         
-         mydb = myclient["Finder"]
-         mycol = mydb["curriculo"]
-
-         newcurriculo = json.loads(request.body)
-         mydoc = mycol.insert_one(newcurriculo)
-
-   return HttpResponse("Curriculo cadastrado com sucesso!")
-
-@csrf_exempt
-def AtualizarCurriculo(request, pk):
-
-   if request.method == "POST":
-         myclient = pymongo.MongoClient("mongodb+srv://dbUser:system@cluster0.5hlez.mongodb.net/Finder?retryWrites=true&w=majority")
-         mydb = myclient["Finder"]
-         mycol = mydb["curriculo"]
-
-
-         myquery = { "_id": pk }
-         newvalues = json.loads(request.body)
-
-         mycol.update_one(myquery, newvalues)
-
-   return HttpResponse("Curriculo atualizar com sucesso!")
-
-@csrf_exempt
-def DeletarCurriculo(request, pk):
-   if request.method == "POST":
-      myclient = pymongo.MongoClient("mongodb+srv://dbUser:system@cluster0.5hlez.mongodb.net/Finder?retryWrites=true&w=majority")
-      mydb = myclient["Finder"]
-      mycol = mydb["curriculo"]
-
-      myquery = { "_id": pk}
-      mycol.delete_one(myquery)
-
-      return HttpResponse("Vaga excluida!")
-      
-#  context = {'task': task}
-#  return render(request, 'bridges_app/delete_tarefa.html', context)
-   return HttpResponse("Curriculo excluído!")
+      return JsonResponse({"message": "Erro na requisição. Método esperado: GET."}, status=500)
