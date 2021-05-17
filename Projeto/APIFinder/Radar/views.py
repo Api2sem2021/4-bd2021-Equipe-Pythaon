@@ -15,9 +15,13 @@ from django.views.decorators.csrf import csrf_exempt
 from bson import ObjectId
 from bson.json_util import dumps
 from bson.objectid import ObjectId
+from datetime import datetime
+import time
+
         
 def createConnection():
-   return pymongo.MongoClient("mongodb+srv://dbUser:system@cluster0.5hlez.mongodb.net/Finder?retryWrites=true&w=majority")
+   # return pymongo.MongoClient("mongodb+srv://dbUser:system@cluster0.5hlez.mongodb.net/Finder?retryWrites=true&w=majority")
+   return pymongo.MongoClient("mongodb://localhost:27017")
 
 @csrf_exempt
 def buscarvaga(request, pk):
@@ -29,7 +33,7 @@ def buscarvaga(request, pk):
       vaga = col.find_one({"VagaIdExterno" : pk})
       
       if vaga:
-         return JsonResponse(dumps(vaga))
+         return JsonResponse(json.loads(dumps(vaga)), safe=False)
       else:
          return JsonResponse({"message" : "Vaga não encontrada."}, status=200)
    else:
@@ -42,7 +46,7 @@ def insert_vaga(request):
       db = client["Finder"]
       col = db["vagas"]
       
-      result = mycol.insert_one(json.loads(request.body))
+      result = col.insert_one(json.loads(request.body))
       # result
       return JsonResponse({"message" : "Vaga cadastrada com sucesso."}, status=200)
    else:
@@ -77,23 +81,23 @@ def delete_vaga(request, pk):
 @csrf_exempt
 def buscarCurriculo(request, pk):
    if request.method == 'GET':
-      client = createConnection(self)
+      client = createConnection()
       db = client["Finder"]
       curriculos = db["Inscrito"]
 
-      curriculo = curriculos.find_one.find({ "InscritoIdExterno": pk })
+      curriculo = curriculos.find_one({"InscritoIdExterno": pk})
 
       if curriculo:
-         return JsonResponse(dumps(curriculo))
+         return JsonResponse(json.loads(dumps(curriculo)), safe=False)
       else:
-         return JsonResponse({"message" : "Currículo não encontrado."}, status=200)
+         return JsonResponse({"message" : "Currículo não encontrado."}, status=200, safe=False)
    else:
-      return JsonResponse({"message": "Erro na requisição. Método esperado: GET."}, status=500)
+      return JsonResponse({"message": "Erro na requisição. Método esperado: GET."}, status=500, safe=False)
 
 @csrf_exempt
 def cadastrarCurriculo(request):
    if request.method == "POST":
-      client = createConnection(self)         
+      client = createConnection()         
       db = client["Finder"]
       col = db["Inscrito"]
 
@@ -106,7 +110,7 @@ def cadastrarCurriculo(request):
 @csrf_exempt
 def atualizarCurriculo(request, pk):
    if request.method == "PUT":
-      client = pymongo.MongoClient("mongodb+srv://dbUser:system@cluster0.5hlez.mongodb.net/Finder?retryWrites=true&w=majority")
+      client = createConnection()
       db = client["Finder"]
       col = db["Inscrito"]
 
@@ -119,7 +123,7 @@ def atualizarCurriculo(request, pk):
 @csrf_exempt
 def deletarCurriculo(request, pk):
    if request.method == "DELETE":
-      client = pymongo.MongoClient("mongodb+srv://dbUser:system@cluster0.5hlez.mongodb.net/Finder?retryWrites=true&w=majority")
+      client = createConnection()
       db = client["Finder"]
       col = db["Inscrito"]
 
@@ -140,7 +144,8 @@ def buscarPorVaga(request,VagaID):
       vagas = mydb["vagas"]
 
       # Recupera a vaga recebida por parâmetro
-      vaga = vagas.find_one({"_id" : ObjectId(VagaID)})
+      # vaga = vagas.find_one({"InscritoIdExterno" : ObjectId(VagaID)})
+      vaga = vagas.find_one({"InscritoIdExterno" : VagaID})
 
       if vaga:
          searchRequisitos = '|'.join([str(requisito['descricao']) for requisito in vaga['competencia']])
@@ -159,7 +164,7 @@ def buscarPorVaga(request,VagaID):
          result_curriculos = curriculos.find(query)
 
          if result_curriculos:
-            IdCol = [str(result['_id']) for result in result_curriculos]
+            IdCol = [str(result['InscritoIdExterno']) for result in result_curriculos]
             return JsonResponse({
                                  "candidatos" : IdCol,
                                  "message" : ""
@@ -173,3 +178,49 @@ def buscarPorVaga(request,VagaID):
          return JsonResponse({"message" : "Vaga não encontrada"}, status=200)
    else:
       return JsonResponse({"message": "Erro na requisição. Método esperado: GET."}, status=500)
+   
+@csrf_exempt
+def buscaFiltrada(request):
+   if request.method == 'GET':
+      client = createConnection()
+      mydb = client["Finder"]
+      curriculos = mydb["Inscrito"]
+      parametros = json.loads(request.body)
+      query = {}
+      
+      try:
+         for item in parametros:
+            if isinstance(item, dict):
+               if item['tipo'] == 'texto':
+                  if isinstance(item['valor'], list): query[item['chave']] = { "$regex": '(?i)' + '|'.join([str(requisito) for requisito in item['valor']])  }
+                  else: query[item['chave']] = { "$regex": '(?i)' + item['valor'] }
+               elif item['tipo'] == 'distancia': 
+                  query[item['chave']] = {
+                        "$near" : {
+                           "$geometry"    : { "type": "Point",  "coordinates": item['valor'] },
+                           "$minDistance" : item['mindist'],
+                           "$maxDistance" : item['maxdist']
+                        }
+                  }
+               elif item['tipo'] == 'data':
+                  if 'eq'  in item: query[item['chave']] = { "$eq" : item['eq'] }
+                  if 'ne'  in item: query[item['chave']] = { "$ne" : item['ne'] }
+                  if 'gt'  in item: query[item['chave']] = { "$gt" : item['gt'] }
+                  if 'gte' in item: query[item['chave']] = { "$gte" : item['gte'] }
+                  if 'lt'  in item: query[item['chave']] = { "$lt" : item['lt'] }
+                  if 'lte' in item: query[item['chave']] = { "$lte" : item['lte'] }
+                  # if 'in'  in item: query[item['chave']] = { "$in" : item['in'] }
+                  # if 'nin' in item: query[item['chave']] = { "$nin" : item['nin'] } 
+            else:
+               return JsonResponse({"message": "Parâmetros inválidos."}, status=500)
+         print(query)
+         data = time.time()
+         curriculos = curriculos.find(query)
+         print("Tempo de execução: ",time.time() - data)
+      except:
+         return JsonResponse({"message": "Erro ao gerar a busca. Os parâmetros enviados contém erros."}, status=500)
+      
+      return JsonResponse(json.loads(dumps(curriculos)), safe=False)
+   else:
+      return JsonResponse({"message": "Erro na requisição. Método esperado: GET."}, status=500)
+   

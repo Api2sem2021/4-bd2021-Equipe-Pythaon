@@ -11,5 +11,6 @@ urlpatterns = [
     path('atualizar_curriculo/<str:pk>',views.atualizarCurriculo),
     path('excluir_curriculo/<str:pk>',views.deletarCurriculo),
     path('buscaPorVaga/<str:VagaID>',views.buscarPorVaga),
+    path('busca_Filtrada',views.buscaFiltrada),
 ]
 
