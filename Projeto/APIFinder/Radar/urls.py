@@ -10,7 +10,7 @@ urlpatterns = [
     path('inserir_curriculo',views.View.cadastrarCurriculo),
     path('atualizar_curriculo/<str:pk>',views.View.atualizarCurriculo),
     path('excluir_curriculo/<str:pk>',views.View.deletarCurriculo),
-    path('busca_VT0/<str:VagaID>',views.buscarPorVagaVT0),
+    path('busca_VT0/<str:VagaID>',views.View.buscarPorVagaVT0),
     path('buscaPorVaga/<str:VagaID>',views.View.buscarPorVaga),
 
 ]
